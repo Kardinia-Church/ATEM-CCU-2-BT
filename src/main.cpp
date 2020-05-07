@@ -143,8 +143,6 @@ void serialLoop() {
 }
 
 
-
-
 void setup() {
   Serial.begin(SERIAL_BAUD);
   Serial.println("\n\n\nBlackmagic CCU Bluetooth Adaptor By Kardinia Church");
@@ -175,10 +173,6 @@ void setup() {
   else {
     Serial.println(" Valid");
   }
-
-  //Start the bluetooth
-  cameraHandler.begin(prefHandler.getPref());
-  cameraHandler.connect();
 
   //Start the wifi
   Serial.println("Starting STA");
@@ -213,6 +207,10 @@ void setup() {
     
     Serial.print("Connected! IP address: "); Serial.println(WiFi.localIP());
     //setupServer();
+
+    //Start the bluetooth
+    cameraHandler.begin(prefHandler.getPref());
+    cameraHandler.connect();
   }
 }
 

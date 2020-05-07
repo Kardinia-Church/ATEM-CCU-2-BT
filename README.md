@@ -12,6 +12,7 @@ Follow the prompts on the display to change device settings
 
 ## Current Bugs
 - Clearing the bluetooth pairing is not working. To fix clear the flash using the ESP32 tool and reflash the firmware
+- Need to detect wifi disconnects
 
 # Special Thanks
 This project is made possible by the following

@@ -1,13 +1,12 @@
 #include "Arduino.h"
 #include "EEPROMHandler.h"
 #include "BlueMagic32/BlueMagic32.h"
-
-#include <ATEMbase.h>
-#include <ATEMext.h>
+#include "atemHandler.h"
 
 class CameraHandler {
     private:
         EEPROMHandler eepromHandler;
+        ATEMHandler atemHandler;
         unsigned long lastUpdate;
     public:
         bool connect() {
@@ -22,6 +21,8 @@ class CameraHandler {
 
             //BMDConnection.begin(BLUETOOTH_DEVICE_NAME);
             BMDControl = BMDConnection.connect();
+            atemHandler.begin("10.4.10.12");
+            
             
             //If we're connected
             if(true) {
@@ -41,18 +42,21 @@ class CameraHandler {
 
         //Main loop
         void loop() {
+            atemHandler.loop();
+
+
             //Check connection
 
-            if(BMDControl->timecodeChanged()) {
-                Serial.println(BMDControl->timecode());
-                lastUpdate = millis();
-            }
-            else if(lastUpdate + 5000 > millis()) {
-                Serial.println("Disconnect");
-            }
 
             
             if (BMDConnection.available()) {
+                // if(BMDControl->timecodeChanged()) {
+                //     Serial.println(BMDControl->timecode());
+                //     lastUpdate = millis();
+                // }
+                // else if(lastUpdate + 5000 > millis()) {
+                //     //Serial.println("Disconnect");
+                // }
                 //Serial.println("connection");
                 if(BMDControl->changed()) {
                     
