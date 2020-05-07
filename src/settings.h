@@ -18,6 +18,11 @@
 #define SERIAL_BAUD 115200
 #define DEBUG_LED 13
 #define CONFIG_SSID "Blackmagic CCU"
+#define DEFAULT_WIFI_SSID "ssid"
+#define DEFAULT_WIFI_PASS "pass"
+#define DEFAULT_WEBUI_PASS "password"
+
+
 
 //  Tally light settings    //
 #define TALLY_PIN 2     //What pin is the tally feature on
@@ -37,7 +42,7 @@
 #define TALLY_FUNCTION_USER {TALLY_COLOR_BLACK, TALLY_COLOR_STANDBY, TALLY_COLOR_PREVIEW, TALLY_COLOR_LIVE, TALLY_COLOR_LIVE_KEYER}
 
 //Bluetooth settings
-#define BLUETOOTH_DEVICE_NAME "ESP32"
+#define BLUETOOTH_DEVICE_NAME "BMD-ESP32"
 
 
 #endif

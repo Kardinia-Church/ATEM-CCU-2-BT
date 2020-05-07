@@ -16,7 +16,8 @@
 
 #define WIFI_ADDR 0x00 //65 bytes in size 32(ssid) + 0xFE + 32(password)
 #define WEBUI_PASS_ADDR 0x41 //32 bytes
-#define UUID_ADDR 0x62 //16 bytes
+#define WIFI_CONNECTION_FLAG 0x50
+#define BLUETOOTH_CONNECTION_FLAG 0x51
 #define EEPROM_SIZE 512
 
 class EEPROMHandler {
@@ -76,10 +77,8 @@ class EEPROMHandler {
             EEPROM.writeByte(WIFI_ADDR + 32, 0xFE);
             EEPROM.writeString(WIFI_ADDR + 33, "password");
             EEPROM.writeString(WEBUI_PASS_ADDR, "password");
-            randomSeed(analogRead(A0));
-            for(int i = 0; i < 16; i++) {
-                EEPROM.writeByte(UUID_ADDR + i, random(0, 255));
-            }
+            EEPROM.writeByte(WIFI_CONNECTION_FLAG, 0);
+            EEPROM.writeByte(BLUETOOTH_CONNECTION_FLAG, 0);
             comitWrite();
         }
 
@@ -100,57 +99,24 @@ class EEPROMHandler {
             }
         }
 
-        //Write the bluetooth device name that we connect to into memory
-        void writeBluetoothDeviceName(String name) {
-            //Not implemented
-        }
-
-        //Read the bluetooth device name from memory
-        String readBluetoothDeviceName() {
-            //Not implemented
-            return "Hayden's iPhone";
-        }
-
-        //Write the bluetooth device pin to memory
-        void writeBluetoothDevicePin(String pin) {
-            //Not implemented
-        }
-
-         //Read the bluetooth device pin from memory
-        String readBluetoothDevicePin() {
-            //Not implemented
-            Serial.println("type pin");
-            String pin = "";
-            while(!Serial.available()){}
-            while(Serial.available()) {pin += (char)Serial.read();}
-            return removeNewLine(pin);
-        }
-
-        //Generate a random UUID and write to memory
-        void generateUUID() {
-            //UUID_ADDR
-            randomSeed(analogRead(A0));
-            for(int i = 0; i < 16; i++) {
-                EEPROM.writeByte(UUID_ADDR + i, random(0, 255));
-            }
+        void setWifiConnectionFlag(int val) {
+            EEPROM.writeByte(WIFI_CONNECTION_FLAG, val);
             comitWrite();
         }
 
-        //Get the service UUID from memory
-        String getUUID() {
-            String ret = "";
-            for(int i = 0; i < 4; i++) {ret += String(EEPROM.readByte(UUID_ADDR + 0 + i), HEX);}
-            ret += '-';
-            for(int i = 0; i < 2; i++) {ret += String(EEPROM.readByte(UUID_ADDR + 4 + i), HEX);}
-            ret += '-';
-            for(int i = 0; i < 2; i++) {ret += String(EEPROM.readByte(UUID_ADDR + 6 + i), HEX);}
-            ret += '-';
-            for(int i = 0; i < 2; i++) {ret += String(EEPROM.readByte(UUID_ADDR + 8 + i), HEX);}
-            ret += '-';
-            for(int i = 0; i < 6; i++) {ret += String(EEPROM.readByte(UUID_ADDR + 10 + i), HEX);}
-            return ret;
+        void setBluetoothConnectionFlag(int val) {
+            EEPROM.writeByte(BLUETOOTH_CONNECTION_FLAG, val);
+            comitWrite();
         }
 
+        int getWifiConnectionFlag() {
+            return EEPROM.readByte(WIFI_CONNECTION_FLAG);
+        }
+
+        int getBluetoothConnectionFlag() {
+            return EEPROM.readByte(BLUETOOTH_CONNECTION_FLAG);
+        }
+        
         //Write the web ui password
         void writeWebUIPassword(String password) {
             EEPROM.writeString(WEBUI_PASS_ADDR, password);

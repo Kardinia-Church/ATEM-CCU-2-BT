@@ -5,19 +5,14 @@
  * Tested on a XC3800 ESP32 development board from Jaycar
 **/
 
-
-
-//#include <Arduino.h>
-// #include <Adafruit_NeoPixel.h>
-#include "WString.h"
 #include "utility.h"
 #include "settings.h"
-#include "EEPROMHandler.h"
+#include "prefHandler.h"
 #include "WiFi.h"
 #include "cameraHandler.h"
 
 CameraHandler cameraHandler;
-EEPROMHandler eepromHandler;
+PreferencesHandler prefHandler;
 //DNSServer dnsServer;
 bool inAPMode = false;
 
@@ -49,9 +44,10 @@ void serialLoop() {
         Serial.println("\n------- Menu -------");
         Serial.println("1 - Change the WIFI settings");
         Serial.println("2 - Open AP to configuration tool");
-        Serial.println("3 - Reset EEPROM");
-        Serial.println("4 - Reboot device");
-        Serial.println("5 - Exit");
+        Serial.println("3 - Reset bluetooth pairing");
+        Serial.println("4 - Reset EEPROM");
+        Serial.println("5 - Reboot device");
+        Serial.println("6 - Exit");
       }
       else {
         if(inMenu == 0) {
@@ -73,7 +69,7 @@ void serialLoop() {
             while(!Serial.available()) {}
             while(Serial.available()) {pass += (char)Serial.read();}
             Serial.println("OK");
-            eepromHandler.writeWifiSettings(removeNewLine(ssid), removeNewLine(pass));
+            prefHandler.writeWifiSettings(removeNewLine(ssid), removeNewLine(pass));
             inMenu = -1;
             ESP.restart();
             break;
@@ -84,15 +80,36 @@ void serialLoop() {
             inMenu = -1;
             break;
           }
-          //Reset EEPROM
+          //Reset bluetooth pairing
           case 3: {
+            Serial.println("Resetting the pairing will disconnect from the camera and forget it. Are you sure?\nType Y to erase or N to exit");
+            while(!Serial.available()) {}
+            String answer = "";
+            while(Serial.available()) {answer += (char)Serial.read();}
+            answer.toUpperCase();
+            if(removeNewLine(answer) == "Y") {
+              //cameraHandler.begin(prefHandler.getPref());
+              prefHandler.initalize();
+              cameraHandler.clearPairing(prefHandler.getPref());
+              //cameraHandler.connect();
+              Serial.println("Complete.");
+              inMenu = -1;
+            }
+            else {
+              inMenu = -1;
+              Serial.println("Did not proceed");
+            }
+            break;
+          }
+          //Reset EEPROM
+          case 4: {
             Serial.println("Resetting the EEPROM will erase ALL stored information including ALL settings! Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
             while(Serial.available()) {answer += (char)Serial.read();}
             answer.toUpperCase();
             if(removeNewLine(answer) == "Y") {
-              eepromHandler.resetMemory();
+              prefHandler.resetMemory();
               Serial.println("Erased! Resetting");
               delay(1000);
               ESP.restart();
@@ -104,12 +121,12 @@ void serialLoop() {
             break;
           }
           //Reset
-          case 4: {
+          case 5: {
             ESP.restart();
             break;
           }
           //Exit menu
-          case 5: {
+          case 6: {
             Serial.println("");
             inMenu = -1;
             break;
@@ -125,30 +142,50 @@ void serialLoop() {
   }  while(inMenu != -1);
 }
 
+
+
+
 void setup() {
   Serial.begin(SERIAL_BAUD);
   Serial.println("\n\n\nBlackmagic CCU Bluetooth Adaptor By Kardinia Church");
   Serial.println("Version :" + String(VERSION));
   Serial.println("Build Date: " + String(__DATE__));
-  Serial.println("Send anything over serial to open configuration menu\n");
+  Serial.println("");
+  Serial.print("Send anything over serial to open configuration menu.");
 
-  //Check the EEPROM
-  if(!eepromHandler.initalize()) {Serial.println("Error initalizing the EEPROM");}else{Serial.println("EEPROM initalized");}
-  Serial.print("Check EEPROM... ");
-  if(!eepromHandler.checkMemory()) {
+  //Allow the user to react
+  int i = 0;
+  while(true) {
+    i++;
+    serialLoop();
+    Serial.print(".");
+    if(i>10){break;}
+    delay(500);
+  }
+  Serial.println("");
+
+  prefHandler.initalize();
+
+  //Check the memory
+  Serial.print("Check memory... ");
+  if(!prefHandler.checkMemory()) {
     Serial.println("Memory invalid. Resetting memory");
-    eepromHandler.resetMemory();
+    prefHandler.resetMemory();
   }
   else {
     Serial.println(" Valid");
   }
 
-  //Start Radios
+  //Start the bluetooth
+  cameraHandler.begin(prefHandler.getPref());
+  cameraHandler.connect();
+
+  //Start the wifi
   Serial.println("Starting STA");
   char ssid[32];
   char pass[32];
-  eepromHandler.readWifiSSID().toCharArray(ssid, 32);
-  eepromHandler.readWifiPassword().toCharArray(pass, 32);
+  prefHandler.readWifiSSID().toCharArray(ssid, 32);
+  prefHandler.readWifiPassword().toCharArray(pass, 32);
 
   //If the settings were not configured open the AP
   if(String(ssid) == "ssid" || String(pass) == "pass") {
@@ -176,21 +213,10 @@ void setup() {
     
     Serial.print("Connected! IP address: "); Serial.println(WiFi.localIP());
     //setupServer();
-
-    //Bluetooth
-    Serial.print("Connecting to camera device.. ");
-    if(cameraHandler.setup()) {
-      Serial.println(" Success!");
-    }
-    else {
-      Serial.println(" Failed");
-    }
   }
 }
 
 void loop() {
-  //if(inAPMode) {dnsServer.processNextRequest();}
-  //serialLoop();
-  //serverLoop();
+  serialLoop();
   cameraHandler.loop();
 }
