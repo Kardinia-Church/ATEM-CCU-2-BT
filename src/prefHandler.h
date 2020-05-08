@@ -62,18 +62,15 @@ class PreferencesHandler {
         //Initalize
         bool initalize() {
             pref = new Preferences();
+
+            //Check if the memory is valid. If not reset it
+            if(getInt("BMDMEMORYSET") != 1) {
+                Serial.println("Memory was not valid. Resetting it");
+                resetMemory();
+            }
+
             return true;
         }
-
-        //Check if the memory is valid. Returns true if it is
-        bool checkMemory() {
-            if(getString("wifiSSID") == ""){Serial.println(1);return false;}
-            if(getString("wifiPassword") == ""){Serial.println(2);return false;}
-            if(getString("webUIPassword") == ""){Serial.println(3);return false;}
-            if(getInt("wifiAttempts") < 0){Serial.println(getInt("wifiAttempts"));return false;}
-            if(getInt("btAttempts") < 0){Serial.println(5);return false;}
-            return true;
-        };
 
         //Set to default values
         void resetMemory() {
@@ -81,8 +78,10 @@ class PreferencesHandler {
             writeString("wifiSSID", DEFAULT_WIFI_SSID);
             writeString("wifiPassword", DEFAULT_WIFI_PASS);
             writeString("webUIPassword", DEFAULT_WEBUI_PASS);
+            writeString("atemIPAddr", "0.0.0.0");
             writeInt("wifiAttempts", 0);
             writeInt("btAttempts", 0);
+            writeInt("BMDMEMORYSET", 1);
         }
 
         void setWifiConnectionAttempts(int val) {
@@ -125,6 +124,16 @@ class PreferencesHandler {
         //Read the wifi password from memory
         String readWifiPassword() {
             return getString("wifiPassword");
+        }
+
+        //Write the ATEM ip
+        void writeATEMIP(String ip) {
+            writeString("atemIPAddr", ip);
+        }
+
+        //Read the ATEM ip
+        String readATEMIP() {
+            return getString("atemIPAddr");
         }
 };
 

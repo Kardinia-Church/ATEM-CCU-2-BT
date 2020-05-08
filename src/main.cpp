@@ -14,7 +14,7 @@
 CameraHandler cameraHandler;
 PreferencesHandler prefHandler;
 //DNSServer dnsServer;
-bool inAPMode = false;
+bool configRequired = false;
 
 //Open an AP to allow for configuration using the web ui
 void openAP() {
@@ -30,9 +30,9 @@ void openAP() {
 
 //Listen and handle serial events
 int inMenu = -1;
-void serialLoop() {
+void serialLoop(String input = "") {
   do {
-    String inputString = "";
+    String inputString = input;
     while(Serial.available()) {
       inputString += (char)Serial.read();
     }
@@ -43,11 +43,12 @@ void serialLoop() {
         inMenu = 0;
         Serial.println("\n------- Menu -------");
         Serial.println("1 - Change the WIFI settings");
-        Serial.println("2 - Open AP to configuration tool");
-        Serial.println("3 - Reset bluetooth pairing");
-        Serial.println("4 - Reset EEPROM");
-        Serial.println("5 - Reboot device");
-        Serial.println("6 - Exit");
+        Serial.println("2 - Change the ATEM IP");
+        Serial.println("3 - Open AP to configuration tool");
+        Serial.println("4 - Reset bluetooth pairing");
+        Serial.println("5 - Reset EEPROM");
+        Serial.println("6 - Reboot device");
+        Serial.println("7 - Exit");
       }
       else {
         if(inMenu == 0) {
@@ -74,14 +75,27 @@ void serialLoop() {
             ESP.restart();
             break;
           }
-          //Open AP to config tool
+          //ATEM Settings
           case 2: {
+            String ip = "";
+            Serial.println("Change ATEM IP");
+            Serial.print("IP: ");
+            while(!Serial.available()) {}
+            while(Serial.available()) {ip += (char)Serial.read();}
+            Serial.println("OK");
+            prefHandler.writeATEMIP(removeNewLine(ip));
+            inMenu = -1;
+            ESP.restart();
+            break;
+          }
+          //Open AP to config tool
+          case 3: {
             openAP();
             inMenu = -1;
             break;
           }
           //Reset bluetooth pairing
-          case 3: {
+          case 4: {
             Serial.println("Resetting the pairing will disconnect from the camera and forget it. Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -102,7 +116,7 @@ void serialLoop() {
             break;
           }
           //Reset EEPROM
-          case 4: {
+          case 5: {
             Serial.println("Resetting the EEPROM will erase ALL stored information including ALL settings! Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -121,12 +135,12 @@ void serialLoop() {
             break;
           }
           //Reset
-          case 5: {
+          case 6: {
             ESP.restart();
             break;
           }
           //Exit menu
-          case 6: {
+          case 7: {
             Serial.println("");
             inMenu = -1;
             break;
@@ -164,16 +178,6 @@ void setup() {
 
   prefHandler.initalize();
 
-  //Check the memory
-  Serial.print("Check memory... ");
-  if(!prefHandler.checkMemory()) {
-    Serial.println("Memory invalid. Resetting memory");
-    prefHandler.resetMemory();
-  }
-  else {
-    Serial.println(" Valid");
-  }
-
   //Start the wifi
   Serial.println("Starting STA");
   char ssid[32];
@@ -182,7 +186,7 @@ void setup() {
   prefHandler.readWifiPassword().toCharArray(pass, 32);
 
   //If the settings were not configured open the AP
-  if(String(ssid) == "ssid" || String(pass) == "pass") {
+  if(String(ssid) == "ssid" || String(pass) == "pass" || prefHandler.readATEMIP() == "0.0.0.0") {
     Serial.println("Memory was reset please set device settings");
     openAP();
   }
@@ -206,15 +210,23 @@ void setup() {
     }
     
     Serial.print("Connected! IP address: "); Serial.println(WiFi.localIP());
-    //setupServer();
 
     //Start the bluetooth
     cameraHandler.begin(prefHandler.getPref());
-    cameraHandler.connect();
+
+    if(cameraHandler.connect(&prefHandler)) {
+      Serial.println(" Success");
+    }
+    else {
+      Serial.println(" Failed");
+    }
   }
 }
 
 void loop() {
   serialLoop();
-  cameraHandler.loop();
+
+  if(!configRequired) {
+    cameraHandler.loop();
+  }
 }

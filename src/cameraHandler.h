@@ -1,37 +1,44 @@
 #include "Arduino.h"
-#include "EEPROMHandler.h"
+#include "prefHandler.h"
 #include "BlueMagic32/BlueMagic32.h"
 #include "atemHandler.h"
 
 class CameraHandler {
     private:
-        EEPROMHandler eepromHandler;
-        ATEMHandler atemHandler;
+        PreferencesHandler *prefHandler;
         unsigned long lastUpdate;
     public:
-        bool connect() {
-            eepromHandler.setBluetoothConnectionFlag(eepromHandler.getBluetoothConnectionFlag() + 1);
+        bool connect(PreferencesHandler *preferencesHandler) {
+            prefHandler = preferencesHandler;
+            prefHandler->setBluetoothConnectionAttempts(prefHandler->getBluetoothConnectionAttempts() + 1);
             
             //If we have failed to connect 5 times reset the pairing
-            if(eepromHandler.getBluetoothConnectionFlag() > 5) {
+            if(prefHandler->getBluetoothConnectionAttempts() > 5) {
                 Serial.print(" Failed to connect 5 times ");
-                eepromHandler.setBluetoothConnectionFlag(0);
+                prefHandler->setBluetoothConnectionAttempts(0);
                 return false;
             }
 
-            //BMDConnection.begin(BLUETOOTH_DEVICE_NAME);
-            BMDControl = BMDConnection.connect();
-            atemHandler.begin("10.4.10.12");
-            
-            
-            //If we're connected
-            if(true) {
-                eepromHandler.setBluetoothConnectionFlag(0);
-                lastUpdate = millis();
-                return true;
+            //Check if the ATEM ip is set
+            if(prefHandler->readATEMIP() == "0.0.0.0") {
+                Serial.print(" ATEM IP is not set ");
+                return false;
             }
-            
-            return false;
+
+            BMDControl = BMDConnection.connect();   
+              
+            atemBegin(prefHandler->readATEMIP(), 1);
+
+            int count = 0;
+            while(atemConnectionState != AtemConnectionState::Connected){
+                Serial.print(".");
+                delay(500);
+                if(count++ > 10){return false;}
+            }
+
+            prefHandler->setBluetoothConnectionAttempts(0);
+            lastUpdate = millis();
+            return true;
         }
 
         //Setup
@@ -42,7 +49,7 @@ class CameraHandler {
 
         //Main loop
         void loop() {
-            atemHandler.loop();
+            atemLoop();
 
 
             //Check connection

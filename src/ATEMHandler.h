@@ -21,46 +21,80 @@
 #define ATEM_HANDSHAKE_ANSWERBACK {0x80, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfa, 0x00, 0x00}
 #define ATEM_DISCONNECT {0x10, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf6, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 
-enum ConnectionState {
+enum AtemConnectionState {
     Disconnected,
     HandshakeRequestSent,
     GatheringInformation,
     Connected,
 };
 
-enum PredefinedPacket {
+enum AtemPredefinedPacket {
     RequestHandshake,
     HandshakeAccepted,
     HandshakeAnswerback,
     Disconnect
 };
 
-uint8_t sessionId[2]; 
-ConnectionState connectionState;
-AsyncUDP udp;
-uint16_t localPacketId = 0;
+struct ATEMCamera {
+    uint8_t id;
+    int16_t iris = 0;
+    int16_t focus = 0;
+    int16_t overallGain = 0;
+    int16_t whiteBalance = 0;
+    int16_t zoomSpeed = 0;
+
+    int16_t liftR = 0;
+    int16_t liftG = 0;
+    int16_t liftB = 0;
+    int16_t liftY = 0;
+
+    int16_t gammaR = 0;
+    int16_t gammaG = 0;
+    int16_t gammaB = 0;
+    int16_t gammaY = 0;
+
+    int16_t gainR = 0;
+    int16_t gainG = 0;
+    int16_t gainB = 0;
+    int16_t gainY = 0;
+
+    int16_t lumMix = 0;
+    int16_t hue = 0;
+    int16_t shutter = 0;
+    int16_t contrast = 0;
+    int16_t saturation = 0;
+};
+
+ATEMCamera atemCamera;
+uint8_t atemSessionId[2]; 
+AtemConnectionState atemConnectionState;
+AsyncUDP atemUdp;
+uint16_t atemLocalPacketId = 0;
+int atemBufferLength = 0;
+AsyncUDPPacket* atemBuffer[50];
+String atemIp = "0.0.0.0";
 
 //Send a predefined packet to the atem
-void sendPredefinedPacket(PredefinedPacket packet) {
+void sendPredefinedPacket(AtemPredefinedPacket packet) {
     switch(packet) {
-        case PredefinedPacket::RequestHandshake: {
+        case AtemPredefinedPacket::RequestHandshake: {
             uint8_t buff[] = ATEM_REQUEST_HANDSHAKE;
             buff[2] = highByte(random(1, 32767));
             buff[3] = lowByte(random(1, 32767));
-            udp.write(buff, sizeof(buff)/sizeof(uint8_t));
-            connectionState = ConnectionState::HandshakeRequestSent;
+            atemUdp.write(buff, sizeof(buff)/sizeof(uint8_t));
+            atemConnectionState = AtemConnectionState::HandshakeRequestSent;
             break;
         }
-        case PredefinedPacket::HandshakeAnswerback: {
+        case AtemPredefinedPacket::HandshakeAnswerback: {
             uint8_t buff[] = ATEM_HANDSHAKE_ANSWERBACK;
-            buff[2] = sessionId[0];
-            buff[3] = sessionId[1];
-            udp.write(buff, sizeof(buff)/sizeof(uint8_t));
-            connectionState = ConnectionState::GatheringInformation;
-            sessionId[0] = 0; sessionId[1] = 0;
+            buff[2] = atemSessionId[0];
+            buff[3] = atemSessionId[1];
+            atemUdp.write(buff, sizeof(buff)/sizeof(uint8_t));
+            atemConnectionState = AtemConnectionState::GatheringInformation;
+            atemSessionId[0] = 0; atemSessionId[1] = 0;
             break;
         }
-        case PredefinedPacket::Disconnect: {
+        case AtemPredefinedPacket::Disconnect: {
             break;
         }
         default: {
@@ -69,108 +103,127 @@ void sendPredefinedPacket(PredefinedPacket packet) {
     }
 }
 
-int atemBufferLength = 0;
-AsyncUDPPacket *atemBuffer[50];
-
 //Process the incoming ATEM packets looking for camera pamameters
 void processATEMIncoming() {
-
+    Serial.println(atemBufferLength);
     for(int i = 0; i < atemBufferLength; i++) {
-        Serial.println("HERE");
-        AsyncUDPPacket *packet = atemBuffer[i];
-        Serial.println("HERE 2");
+                        //Serial.println("-1");
+        if(atemBuffer[i]->length() > 12) {
+            for(uint16_t j = 12; j < atemBuffer[i]->length();) {
+                //Serial.println("0");
+                uint16_t commandLength = atemBuffer[i]->data()[j] * 256 + atemBuffer[i]->data()[j + 1];
 
-        uint16_t j = 12;
-        while(packet->length() > 12) {
-            if(j >= packet->length() - 1) {break;}
-            uint16_t commandLength = packet->data()[j] * 256 + packet->data()[j + 1];
-            i+=commandLength;
-            Serial.println(i);
+                //Serial.println("1");
+
+                //Process the internal command
+                String cmd = "";
+                for(int k = j + 4; k < j + 8; k++) {
+                    cmd += (char)atemBuffer[i]->data()[k];
+                }
+
+                //Serial.println(cmd);
+
+                //Serial.println("2");
+                j+=commandLength;
+            }
+
+
+            //Process our commands
+            // if(cmd.compareTo("CCdP") == 0) {
+            //     Serial.println("camera control");
+
+            // }
+
+
+
         }
-        atemBufferLength--;
     }
+    atemBufferLength = 0;
 }
 
 unsigned long lastATEMResponse = millis();
 
-class ATEMHandler {
-    private:
-        IPAddress ip;
-        const int port = ATEM_PORT;
-    public:
-        void begin(String ipAddress) {
-            connectionState = ConnectionState::Disconnected;
-            sessionId[0] = 0; sessionId[1] = 0;
+void atemBegin(String ipAddress, uint8_t cameraId) {
+    atemCamera.id = cameraId;
+    atemIp = ipAddress;
+    atemConnectionState = AtemConnectionState::Disconnected;
+    atemSessionId[0] = 0; atemSessionId[1] = 0;
 
-            ip.fromString(ipAddress);
-            if(udp.connect(IPAddress(10,4,10,12), port)) {
-                udp.onPacket([](AsyncUDPPacket packet) {
+    IPAddress ip;
+    ip.fromString(atemIp);
+    Serial.println("Attempting connection to the ATEM @ " + atemIp);  
+    if(atemUdp.connect(ip, ATEM_PORT)) {
+        atemUdp.onPacket([](AsyncUDPPacket packet) {
 
-                    //Validate
-                    int length = ((packet.data()[0] & 0x07) << 8) | packet.data()[1];
-                    if(length == packet.length()) {
-                        uint8_t flag = packet.data()[0] >> 3;
+            //Validate
+            int length = ((packet.data()[0] & 0x07) << 8) | packet.data()[1];
+            if(length == packet.length()) {
+                uint8_t flag = packet.data()[0] >> 3;
 
-                        //Switch actions based on the connection state
-                        switch(connectionState) {
-                            case ConnectionState::Disconnected: {
-                                Serial.println("ERROR: We got a packet from the ATEM but we're disconnected?!");
-                                break;
-                            }
-                            case ConnectionState::HandshakeRequestSent: {
-                                Serial.println("Got handshake with ATEM. Gathering information...");
-                                localPacketId = 0;
-                                sessionId[0] = packet.data()[2];
-                                sessionId[1] = packet.data()[3];
-                                sendPredefinedPacket(PredefinedPacket::HandshakeAnswerback);
-                                break;
-                            }
-                            case ConnectionState::GatheringInformation: {
-                                //Update our session id if we don't have one yet
-                                if(sessionId[0] == 0 && sessionId[1] == 0) {
-                                    sessionId[0] = packet.data()[2];
-                                    sessionId[1] = packet.data()[3];
-                                }
-                                if(flag == 0x02) {
-                                    connectionState = ConnectionState::Connected;
-                                    Serial.println("Connected to ATEM");
-                                }
-                                atemBuffer[++atemBufferLength] = &packet;
-                                break;
-                            }
-                            case ConnectionState::Connected: {
-                                lastATEMResponse = millis();
-                                atemBuffer[++atemBufferLength] = &packet;
-                                break;
-                            }
-                        }
-                        Serial.println("HI");
-
-                        //Send a reply to each message
-                        uint8_t buffer[] = {0x80, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x00, 0x00};
-                        buffer[2] = sessionId[0];
-                        buffer[3] = sessionId[1];
-                        buffer[4] = packet.data()[10];
-                        buffer[5] = packet.data()[11];
-                        udp.write(buffer, 12);
+                //Switch actions based on the connection state
+                switch(atemConnectionState) {
+                    case AtemConnectionState::Disconnected: {
+                        Serial.println("ERROR: We got a packet from the ATEM but we're disconnected?!");
+                        break;
                     }
-                });
+                    case AtemConnectionState::HandshakeRequestSent: {
+                        atemLocalPacketId = 0;
+                        atemSessionId[0] = packet.data()[2];
+                        atemSessionId[1] = packet.data()[3];
+                        sendPredefinedPacket(AtemPredefinedPacket::HandshakeAnswerback);
+                        break;
+                    }
+                    case AtemConnectionState::Connected:
+                    case AtemConnectionState::GatheringInformation: {
+                        //Update our session id if we don't have one yet
+                        if(atemSessionId[0] == 0 && atemSessionId[1] == 0) {
+                            atemSessionId[0] = packet.data()[2];
+                            atemSessionId[1] = packet.data()[3];
+                        }
+                        if(flag == 0x11) {
+                            atemConnectionState = AtemConnectionState::Connected;
+                        }
+                        atemBuffer[atemBufferLength] = &packet;
+                        atemBufferLength++;
+                        break;
+                    }
 
-                sendPredefinedPacket(PredefinedPacket::RequestHandshake);
+                }
+
+                //Send a reply to each message
+                uint8_t buffer[] = {0x80, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x00, 0x00};
+                buffer[2] = atemSessionId[0];
+                buffer[3] = atemSessionId[1];
+                buffer[4] = packet.data()[10];
+                buffer[5] = packet.data()[11];
+                atemUdp.write(buffer, 12);
+                lastATEMResponse = millis();
             }
+        });
+
+        sendPredefinedPacket(AtemPredefinedPacket::RequestHandshake);
+    }
+}
+void atemLoop() {
+    processATEMIncoming();
+
+    if(lastATEMResponse + 5000 < millis() && atemConnectionState == AtemConnectionState::Connected) {
+        uint8_t camId = atemCamera.id;
+        Serial.println("ERROR: Disconnected from ATEM");
+        atemConnectionState = AtemConnectionState::Disconnected;
+        atemUdp.close();
+        atemSessionId[0] = 0;
+        atemSessionId[1] = 0;
+        atemLocalPacketId = 0;
+        atemBufferLength = 0;
+        atemCamera = ATEMCamera();
+
+        //Wait for a bit then attempt a reconnection
+        if(lastATEMResponse + 10000 < millis()) {
+            atemBegin(atemIp, camId);
         }
-        void loop() {
-            processATEMIncoming();
+    }
+}
 
-
-            if(lastATEMResponse + 5000 > millis()) {
-                Serial.println("ERROR: Disconnected from ATEM");
-            }
-
-            // if(udp.available()) {
-            //     Serial.println(udp)
-            // }
-        }
-};
 
 #endif
