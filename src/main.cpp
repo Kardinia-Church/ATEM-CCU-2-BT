@@ -82,7 +82,8 @@ void serialLoop(String input = "") {
             Serial.print("IP: ");
             while(!Serial.available()) {}
             while(Serial.available()) {ip += (char)Serial.read();}
-            Serial.println("OK");
+            Serial.print(removeNewLine(ip));
+            Serial.println(" OK");
             prefHandler.writeATEMIP(removeNewLine(ip));
             inMenu = -1;
             ESP.restart();
@@ -164,6 +165,7 @@ void setup() {
   Serial.println("Build Date: " + String(__DATE__));
   Serial.println("");
   Serial.print("Send anything over serial to open configuration menu.");
+  prefHandler.initalize();
 
   //Allow the user to react
   int i = 0;
@@ -175,8 +177,6 @@ void setup() {
     delay(500);
   }
   Serial.println("");
-
-  prefHandler.initalize();
 
   //Start the wifi
   Serial.println("Starting STA");

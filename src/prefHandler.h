@@ -129,6 +129,7 @@ class PreferencesHandler {
         //Write the ATEM ip
         void writeATEMIP(String ip) {
             writeString("atemIPAddr", ip);
+            Serial.println("HERE");
         }
 
         //Read the ATEM ip

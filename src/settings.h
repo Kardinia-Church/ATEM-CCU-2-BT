@@ -22,7 +22,10 @@
 #define DEFAULT_WIFI_PASS "pass"
 #define DEFAULT_WEBUI_PASS "password"
 
-
+//#define USE_ATEM_DIRECT //Uncomment if you wish to connect directly to the ATEM (This will use a client) [UNSUPPORTED]
+#define USE_NR_ATEM //Uncomment to use a node red middle man to transfer commands to this device
+#define NR_PORT_OUTGOING 9045
+#define NR_PORT_INCOMING 9046
 
 //  Tally light settings    //
 #define TALLY_PIN 2     //What pin is the tally feature on

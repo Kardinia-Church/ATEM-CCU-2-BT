@@ -71,7 +71,7 @@ AtemConnectionState atemConnectionState;
 AsyncUDP atemUdp;
 uint16_t atemLocalPacketId = 0;
 int atemBufferLength = 0;
-AsyncUDPPacket* atemBuffer[50];
+AsyncUDPPacket *atemBuffer[50];
 String atemIp = "0.0.0.0";
 
 //Send a predefined packet to the atem
@@ -105,7 +105,7 @@ void sendPredefinedPacket(AtemPredefinedPacket packet) {
 
 //Process the incoming ATEM packets looking for camera pamameters
 void processATEMIncoming() {
-    Serial.println(atemBufferLength);
+    //Serial.println(atemBufferLength);
     for(int i = 0; i < atemBufferLength; i++) {
                         //Serial.println("-1");
         if(atemBuffer[i]->length() > 12) {
@@ -121,21 +121,18 @@ void processATEMIncoming() {
                     cmd += (char)atemBuffer[i]->data()[k];
                 }
 
-                //Serial.println(cmd);
-
                 //Serial.println("2");
                 j+=commandLength;
+            
+                //Process our commands
+                if(cmd.compareTo("CCdP") == 0) {
+                    Serial.println("CAMERA");
+                    // for(int k = j + 8; k < atemBuffer[i]->length(); k++) {
+                    //     Serial.print(atemBuffer[i]->data()[k], HEX);
+                    // }
+                    Serial.println();
+                }
             }
-
-
-            //Process our commands
-            // if(cmd.compareTo("CCdP") == 0) {
-            //     Serial.println("camera control");
-
-            // }
-
-
-
         }
     }
     atemBufferLength = 0;
