@@ -2,80 +2,59 @@
 #include "prefHandler.h"
 #include "BlueMagic32/BlueMagic32.h"
 #include "utility.h"
-
-#ifdef USE_ATEM_DIRECT
-    #include "atemHandler.h"
-#endif
-#ifdef USE_NR_ATEM
-    #include "NRHandler.h"
-#endif
-
-// struct ATEMCamera {
-//     uint8_t id;
-//     int16_t iris = 0;
-//     int16_t focus = 0;
-//     int16_t overallGain = 0;
-//     int16_t whiteBalance = 0;
-//     int16_t zoomSpeed = 0;
-
-//     int16_t liftR = 0;
-//     int16_t liftG = 0;
-//     int16_t liftB = 0;
-//     int16_t liftY = 0;
-
-//     int16_t gammaR = 0;
-//     int16_t gammaG = 0;
-//     int16_t gammaB = 0;
-//     int16_t gammaY = 0;
-
-//     int16_t gainR = 0;
-//     int16_t gainG = 0;
-//     int16_t gainB = 0;
-//     int16_t gainY = 0;
-
-//     int16_t lumMix = 0;
-//     int16_t hue = 0;
-//     int16_t shutter = 0;
-//     int16_t contrast = 0;
-//     int16_t saturation = 0;
-// };
+#include "ATEMConnection.h"
+#include "atemHandler.h"
+#include "NRHandler.h"
 
 class CameraHandler {
     private:
         PreferencesHandler *prefHandler;
+        ATEMConnection *atemHandler;
         unsigned long lastUpdate;
-        // ATEMCamera atemCamera;
+        int connectionMode = 0;
     public:
         bool connect(PreferencesHandler *preferencesHandler) {
             prefHandler = preferencesHandler;
-            prefHandler->setBluetoothConnectionAttempts(prefHandler->getBluetoothConnectionAttempts() + 1);
-            
-            //If we have failed to connect 5 times reset the pairing
-            if(prefHandler->getBluetoothConnectionAttempts() > 5) {
-                Serial.print(" Failed to connect 5 times ");
-                prefHandler->setBluetoothConnectionAttempts(0);
-                return false;
-            }
+            connectionMode = prefHandler->getATEMConnectionMode();
 
-            
+            Serial.println(connectionMode);
+
+            switch(connectionMode) {
+                case 0: {
+                    //Direct ATEM connectiona
+                    //atemHandler = new ATEMHandler;
+                    Serial.println("Slave connection not supported yet, sorry. Setting mode to node red mode");
+                    prefHandler->setATEMConnectionMode(2);
+                    break;
+                }
+                case 1: {
+                    //Slave connection
+                    Serial.println("Slave connection not supported yet, sorry. Setting mode to node red mode");
+                    prefHandler->setATEMConnectionMode(2);
+                    return false;
+                    break;
+                }
+                case 2: {
+                    //Node red connection
+                    atemHandler = new NRHandler;
+                    break;
+                }
+                default: {
+                    Serial.println(" Connection mode was not understood! " + connectionMode);
+                    prefHandler->setATEMConnectionMode(2);
+                    return false;
+                }
+            }
+   
             //Check if the ATEM ip is set
             if(prefHandler->readATEMIP() == "0.0.0.0") {
                 Serial.print(" ATEM IP is not set ");
                 return false;
             }
-            atemBegin(prefHandler->readATEMIP(), 1);
 
-            #ifdef USE_ATEM_DIRECT
-                int count = 0;
-                while(atemConnectionState != AtemConnectionState::Connected){
-                    Serial.print(".");
-                    delay(500);
-                    if(count++ > 10){return false;}
-                }
-            #endif
+            if(!atemHandler->begin(prefHandler->readATEMIP())) {return false;}
 
             BMDControl = BMDConnection.connect();   
-            prefHandler->setBluetoothConnectionAttempts(0);
             lastUpdate = millis();
             return true;
         }
@@ -88,38 +67,31 @@ class CameraHandler {
 
         //Main loop
         void loop() {
-            byte *data = atemLoop();
+            byte *data = atemHandler->loop();
             if(data != nullptr) {
                 if (BMDConnection.available()) {
-
-
-                        Serial.print("CMD");
-                        Serial.print(data[1], HEX);
-                        Serial.print(",");
-                        Serial.print(data[2], HEX);
-                        Serial.println();
                         switch(data[1]) {      
                             case 0: {
                                 //Lens
                                 switch(data[2]) {
                                     case 0: {
                                         //Focus
-                                        uint16_t value = (uint32_t)mapfValue((int16_t)((data[16] << 8) | (data[17] & 0xff)), 0, 65535, 0, 32767);
-                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
+                                        uint16_t value = ((int16_t)((data[16] << 8) | (data[17] & 0xff))) / 2;
+                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
                                     case 2: {
                                          //Aperture
-                                        uint16_t value = mapFloat((float((data[16] << 8) | (data[17] & 0xff)) - 3072.0) / 15360.0);
-                                        uint8_t send[10] = {255, 6, 0, 0, data[1], 3, 128, 0,  value & 0xff, (value >> 8)};
+                                        uint16_t value = (((float)((data[16] << 8) | (data[17] & 0xff)) - 3072.0) / 15360.0) * 2047;
+                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], 3, 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
                                     case 9: {
                                         //Zoom speed
-                                        uint16_t value = (uint32_t)mapfValue((int16_t)((data[16] << 8) | (data[17] & 0xff)), -2048, 2048, -2048.0, 2048.0);
-                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
+                                        uint16_t value = (int16_t)((data[16] << 8) | (data[17] & 0xff));
+                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
@@ -132,14 +104,12 @@ class CameraHandler {
                                     case 2: {
                                         //White Balance
                                         int16_t whiteBalance = (data[16] << 8) | (data[17] & 0xff);
-                                        int16_t tint = (data[17] << 8) | (data[18] & 0xff);
-                                        Serial.println(tint);
-                                        BMDControl->whiteBalance(whiteBalance, tint);
+                                        uint8_t send[12] = {data[0], 8, 0, 0, 1, 2, 2, 0, (whiteBalance & 0xff), (whiteBalance >> 8), 0, 0}; //Tint is 0 as the ATEM doesn't support it
+                                        BMDControl->custom(send, 12);
                                         break;
                                     }
                                     case 5: {
                                         //Shutter speed
-                                        // uint32_t value = ((int)data[16] << 24) | ((int)data[17] << 16) | ((int)data[18] << 8) | ((int)data[19]);
                                         int32_t value = -1;
                                         switch((uint16_t)((data[18] << 8) | (data[19] & 0xff))) {
                                             case 20000: {value = 50; break;}
@@ -159,12 +129,13 @@ class CameraHandler {
                                             case 500: {value = 2000; break;}
                                         }
 
-                                        BMDControl->shutterSpeed(value);
+                                        uint8_t send[12] = {data[0], 8, 0, 0, 1, 12, 3, 0, (value & 0xff), (value >> 8), 0, 0};
+                                        BMDControl->custom(send, 12);
                                         break;
                                     }
                                     case 13: {
                                         //Gain
-                                        uint8_t send[9] = {255, 5, 0, 0, data[1], data[2], 1, 0, data[16]};
+                                        uint8_t send[9] = {data[0], 5, 0, 0, data[1], data[2], 1, 0, data[16]};
                                         BMDControl->custom(send, 9);
                                         break;
                                     }
@@ -175,59 +146,55 @@ class CameraHandler {
                                 switch(data[2]) {
                                     case 0: {
                                         //Lift
-                                        uint16_t r = (uint32_t)mapfValue((int16_t)((data[16] << 8) | (data[17] & 0xff)), -4096, 4096, -2047.0, 2047.0);
-                                        uint16_t g = (uint32_t)mapfValue((int16_t)((data[18] << 8) | (data[19] & 0xff)), -4096, 4096, -2047.0, 2047.0);
-                                        uint16_t b = (uint32_t)mapfValue((int16_t)((data[20] << 8) | (data[21] & 0xff)), -4096, 4096, -2047.0, 2047.0);
-                                        uint16_t y = (uint32_t)mapfValue((int16_t)((data[22] << 8) | (data[23] & 0xff)), -4096, 4096, -2047.0, 2047.0);
-                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint16_t r = (int16_t)((data[16] << 8) | (data[17] & 0xff)) / 2;
+                                        uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff)) / 2;
+                                        uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff)) / 2;
+                                        uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff)) / 2;
+                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
                                         break;
                                     }
                                     case 1: {
                                         //Gamma
-                                        uint16_t r = (uint32_t)mapfValue((int16_t)((data[16] << 8) | (data[17] & 0xff)), -8192, 8192, -2047.0, 2047.0);
-                                        uint16_t g = (uint32_t)mapfValue((int16_t)((data[18] << 8) | (data[19] & 0xff)), -8192, 8192, -2047.0, 2047.0);
-                                        uint16_t b = (uint32_t)mapfValue((int16_t)((data[20] << 8) | (data[21] & 0xff)), -8192, 8192, -2047.0, 2047.0);
-                                        uint16_t y = (uint32_t)mapfValue((int16_t)((data[22] << 8) | (data[23] & 0xff)), -8192, 8192, -2047.0, 2047.0);
-                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint16_t r = (int16_t)((data[16] << 8) | (data[17] & 0xff)) / 4;
+                                        uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff)) / 4;
+                                        uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff)) / 4;
+                                        uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff)) / 4;
+                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
                                         break;
                                     }
                                     case 2:
                                     {
                                         //Gain
-                                        uint16_t r = (uint32_t)mapfValue((uint16_t)((data[16] << 8) | (data[17] & 0xff)), 0, 32767, 0, 32767);
-                                        uint16_t g = (uint32_t)mapfValue((uint16_t)((data[18] << 8) | (data[19] & 0xff)), 0, 32767, 0, 32767);
-                                        uint16_t b = (uint32_t)mapfValue((uint16_t)((data[20] << 8) | (data[21] & 0xff)), 0, 32767, 0, 32767);
-                                        uint16_t y = (uint32_t)mapfValue((uint16_t)((data[22] << 8) | (data[23] & 0xff)), 0, 32767, 0, 32767);
-                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint16_t r = (int16_t)((data[16] << 8) | (data[17] & 0xff));
+                                        uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff));
+                                        uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff));
+                                        uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff));
+                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
-                                        break;
-                                    }
-                                    case 3: {
-                                        //Offset NOT SUPPORTED
                                         break;
                                     }
                                     case 4: {
                                         //Contrast
-                                        uint16_t pivot = (uint32_t)mapfValue((uint16_t)((data[16] << 8) | (data[17] & 0xff)), 0, 4096, 0, 4096.0);
-                                        uint16_t adjust = (uint32_t)mapfValue((uint16_t)((data[18] << 8) | (data[19] & 0xff)), 0, 4096, 0, 4096.0);
-                                        uint8_t send[12] = {255, 8, 0, 0, data[1], data[2], 128, 0, (pivot & 0xff), (pivot >> 8), (adjust & 0xff), (adjust >> 8)};
+                                        uint16_t pivot = (uint16_t)((data[16] << 8) | (data[17] & 0xff));
+                                        uint16_t adjust = (uint16_t)((data[18] << 8) | (data[19] & 0xff));
+                                        uint8_t send[12] = {data[0], 8, 0, 0, data[1], data[2], 128, 0, (pivot & 0xff), (pivot >> 8), (adjust & 0xff), (adjust >> 8)};
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
                                     case 5: {
                                         //Lum mix
-                                        uint16_t value = (uint32_t)mapfValue((uint16_t)((data[16] << 8) | (data[17] & 0xff)), 0, 2048, 0, 2048.0);
-                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0, (value & 0xff), (value >> 8)};
+                                        uint16_t value = (uint16_t)((data[16] << 8) | (data[17] & 0xff));
+                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0, (value & 0xff), (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
                                     case 6: {
                                         //Color adjust
-                                        uint16_t hue = (uint32_t)mapfValue((int16_t)((data[16] << 8) | (data[17] & 0xff)), -2048, 2048, -2048, 2048.0);
-                                        uint16_t saturation = (uint32_t)mapfValue((uint16_t)((data[18] << 8) | (data[19] & 0xff)), 0, 2048, 0, 2048.0);
-                                        uint8_t send[12] = {255, 8, 0, 0, data[1], data[2], 128, 0, (hue & 0xff), (hue >> 8), (saturation & 0xff), (saturation >> 8)};
+                                        int16_t hue = (int16_t)((data[16] << 8) | (data[17] & 0xff));
+                                        uint16_t saturation = (int16_t)((data[18] << 8) | (data[19] & 0xff));
+                                        uint8_t send[12] = {data[0], 8, 0, 0, data[1], data[2], 128, 0, (hue & 0xff), (hue >> 8), (saturation & 0xff), (saturation >> 8)};
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
@@ -236,16 +203,6 @@ class CameraHandler {
                                 break;
                             }
                         }
-
-
-
-                        
-                        //BMDControl->custom(send, 16);
-
-                        
-
-
-                   // Serial.println(String((data[16] << 8) | (data[17] & 0xff))  + ":" + String((data[18] << 8) | (data[19] & 0xff))  + ":" + String((data[20] << 8) | (data[21] & 0xff))  + ":" + String((data[22] << 8) | (data[23] & 0xff)));
                 }
             }
         };

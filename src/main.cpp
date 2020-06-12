@@ -1,31 +1,33 @@
-/**
- * Blackmagic CCU to Bluetooth Adaptor For ESP32
- * By Kardinia Church 2020
- * 
- * Tested on a XC3800 ESP32 development board from Jaycar
-**/
-
 #include "utility.h"
 #include "settings.h"
 #include "prefHandler.h"
 #include "WiFi.h"
 #include "cameraHandler.h"
+#include "statusIndicator.h"
+#include <DNSServer.h>
+#include "webServer.h"
 
 CameraHandler cameraHandler;
 PreferencesHandler prefHandler;
-//DNSServer dnsServer;
-bool configRequired = false;
+StatusIndicator statusIndicator(DEBUG_LED);
+DNSServer dnsServer;
+WebServer webServer;
+bool APOpen = false;
 
 //Open an AP to allow for configuration using the web ui
 void openAP() {
+  statusIndicator.updateStatus(StatusIndicator::Status::APOpen);
   Serial.print("Opening AP on SSID: " + String(CONFIG_SSID) + "... ");
   WiFi.disconnect();
   WiFi.mode(WIFI_OFF);
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(IPAddress(192, 168, 1, 1), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(CONFIG_SSID);
-  //dnsServer.start(53, "*", IPAddress(192, 168, 1, 1));
+  dnsServer.start(53, "*", IPAddress(192, 168, 1, 1));
+  webServer.start(&prefHandler);
   Serial.println(" Ready");
+  prefHandler.setRebootFlag(0);
+  APOpen = true;
 }
 
 //Listen and handle serial events
@@ -43,8 +45,10 @@ void serialLoop(String input = "") {
         inMenu = 0;
         Serial.println("\n------- Menu -------");
         Serial.println("1 - Change the WIFI settings");
-        Serial.println("2 - Change the ATEM IP");
-        Serial.println("3 - Open AP to configuration tool");
+        Serial.println("2 - Change the ATEM Connection Preference");
+        #ifdef DEBUG
+          Serial.println("3 - Open AP to configuration tool");
+        #endif
         Serial.println("4 - Reset bluetooth pairing");
         Serial.println("5 - Reset EEPROM");
         Serial.println("6 - Reboot device");
@@ -77,14 +81,24 @@ void serialLoop(String input = "") {
           }
           //ATEM Settings
           case 2: {
+            String connectionMode = "";
             String ip = "";
-            Serial.println("Change ATEM IP");
+            Serial.println("Change ATEM Connection");
+            Serial.println("Connection mode (0=Direct ATEM Connection, 1=Slave connection, 2=Node red connection): ");
+            #ifndef DEBUG
+              Serial.println("Currently 2 (Node red connection) is only supported, sorry");
+            #endif
+            while(!Serial.available()) {}
+            while(Serial.available()) {connectionMode += (char)Serial.read();}
+            Serial.print(removeNewLine(connectionMode));
+            Serial.println(" OK");
             Serial.print("IP: ");
             while(!Serial.available()) {}
             while(Serial.available()) {ip += (char)Serial.read();}
             Serial.print(removeNewLine(ip));
             Serial.println(" OK");
             prefHandler.writeATEMIP(removeNewLine(ip));
+            prefHandler.setATEMConnectionMode(removeNewLine(connectionMode).toInt());
             inMenu = -1;
             ESP.restart();
             break;
@@ -158,25 +172,41 @@ void serialLoop(String input = "") {
 }
 
 
+//Setup functions
 void setup() {
   Serial.begin(SERIAL_BAUD);
-  Serial.println("\n\n\nBlackmagic CCU Bluetooth Adaptor By Kardinia Church");
-  Serial.println("Version :" + String(VERSION));
+  Serial.println("\n\n\nATEM CCU 2 BT By Kardinia Church");
+  Serial.println("Version: " + String(VERSION));
   Serial.println("Build Date: " + String(__DATE__));
   Serial.println("");
   Serial.print("Send anything over serial to open configuration menu.");
   prefHandler.initalize();
 
-  //Allow the user to react
-  int i = 0;
-  while(true) {
-    i++;
-    serialLoop();
-    Serial.print(".");
-    if(i>10){break;}
-    delay(500);
+  //Check if the device was rebooted twice. If so open the configuration tool
+  if(prefHandler.getRebootFlag() >= 2) {
+    Serial.println("Configuration tool requested. Opening AP.");
+    #ifndef DEBUG
+      Serial.println("However this is not supported yet"); ESP.restart();
+    #endif
+    openAP();
+    return;
   }
-  Serial.println("");
+  else {
+    prefHandler.setRebootFlag(prefHandler.getRebootFlag() + 1);
+    //Allow the user to react
+    int i = 0;
+    while(true) {
+      i++;
+      serialLoop();
+      Serial.print(".");
+      if(i>10){break;}
+      delay(500);
+      statusIndicator.updateStatus(StatusIndicator::Status::Waiting);
+    }
+    Serial.println("");
+  }
+  
+  prefHandler.setRebootFlag(0);
 
   //Start the wifi
   Serial.println("Starting STA");
@@ -197,13 +227,14 @@ void setup() {
     //Wait till wifi is connected
     int i = 0;
     while (!WiFi.isConnected()) {
+      statusIndicator.updateStatus(StatusIndicator::Status::Connecting);
       Serial.print(".");
       serialLoop();
       i++;
       if(i > 50) {
         //Failed to connect
         Serial.println(" Failed");
-        openAP();
+        ESP.restart();
         break;
       }
       delay(500);
@@ -219,14 +250,30 @@ void setup() {
     }
     else {
       Serial.println(" Failed");
+      openAP();
     }
   }
+
+  if(!APOpen){statusIndicator.updateStatus(StatusIndicator::Status::NormalOperation);}
 }
 
+//Main loop
 void loop() {
   serialLoop();
+  statusIndicator.updateStatus();
 
-  if(!configRequired) {
+  if(APOpen) {
+    //Configuration AP is open handle connections
+    dnsServer.processNextRequest();
+    webServer.loop();
+  }
+  else {
+    //Do normal functions
     cameraHandler.loop();
+
+    //If we lost connection to the wifi reboot
+    if(WiFi.status() != WL_CONNECTED) {
+      ESP.restart();
+    }
   }
 }

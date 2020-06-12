@@ -1,14 +1,3 @@
-/**
- * Blackmagic CCU to Bluetooth Adaptor For ESP32
- * By Kardinia Church 2020
- * 
- * Tested on a XC3800 ESP32 development board from Jaycar
- * 
- * 
- * prefHandler.h
- * Used to define the allocation of memory for storing information
-**/
-
 #ifndef PREF_HANDLER_H
 #define PREF_HANDLER_H
 
@@ -79,25 +68,25 @@ class PreferencesHandler {
             writeString("wifiPassword", DEFAULT_WIFI_PASS);
             writeString("webUIPassword", DEFAULT_WEBUI_PASS);
             writeString("atemIPAddr", "0.0.0.0");
-            writeInt("wifiAttempts", 0);
-            writeInt("btAttempts", 0);
             writeInt("BMDMEMORYSET", 1);
+            writeInt("rebootFlag", 0);
+            writeInt("atemMode", -1);
         }
 
-        void setWifiConnectionAttempts(int val) {
-            writeInt("wifiAttempts", val);
+        void setATEMConnectionMode(int mode) {
+            writeInt("atemMode", mode);
         }
 
-        void setBluetoothConnectionAttempts(int val) {
-            writeInt("btAttempts", val);
+        int getATEMConnectionMode() {
+            return getInt("atemMode");
         }
 
-        int getWifiConnectionAttempts() {
-            return getInt("wifiAttempts");
+        void setRebootFlag(int flag) {
+            writeInt("rebootFlag", flag);
         }
 
-        int getBluetoothConnectionAttempts() {
-            return getInt("btAttempts");
+        int getRebootFlag() {
+            return getInt("rebootFlag");
         }
         
         //Write the web ui password
@@ -129,7 +118,6 @@ class PreferencesHandler {
         //Write the ATEM ip
         void writeATEMIP(String ip) {
             writeString("atemIPAddr", ip);
-            Serial.println("HERE");
         }
 
         //Read the ATEM ip
