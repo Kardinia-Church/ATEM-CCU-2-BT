@@ -75,21 +75,21 @@ class CameraHandler {
                                     case 0: {
                                         //Focus
                                         uint16_t value = ((int16_t)((data[16] << 8) | (data[17] & 0xff))) / 2;
-                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
+                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
                                     case 2: {
                                          //Aperture
                                         uint16_t value = (((float)((data[16] << 8) | (data[17] & 0xff)) - 3072.0) / 15360.0) * 2047;
-                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], 3, 128, 0,  value & 0xff, (value >> 8)};
+                                        uint8_t send[10] = {255, 6, 0, 0, data[1], 3, 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
                                     case 9: {
                                         //Zoom speed
                                         uint16_t value = (int16_t)((data[16] << 8) | (data[17] & 0xff));
-                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
+                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0,  value & 0xff, (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
@@ -102,7 +102,7 @@ class CameraHandler {
                                     case 2: {
                                         //White Balance
                                         int16_t whiteBalance = (data[16] << 8) | (data[17] & 0xff);
-                                        uint8_t send[12] = {data[0], 8, 0, 0, 1, 2, 2, 0, (whiteBalance & 0xff), (whiteBalance >> 8), 0, 0}; //Tint is 0 as the ATEM doesn't support it
+                                        uint8_t send[12] = {255, 8, 0, 0, 1, 2, 2, 0, (whiteBalance & 0xff), (whiteBalance >> 8), 0, 0}; //Tint is 0 as the ATEM doesn't support it
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
@@ -127,13 +127,13 @@ class CameraHandler {
                                             case 500: {value = 2000; break;}
                                         }
 
-                                        uint8_t send[12] = {data[0], 8, 0, 0, 1, 12, 3, 0, (value & 0xff), (value >> 8), 0, 0};
+                                        uint8_t send[12] = {255, 8, 0, 0, 1, 12, 3, 0, (value & 0xff), (value >> 8), 0, 0};
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
                                     case 13: {
                                         //Gain
-                                        uint8_t send[9] = {data[0], 5, 0, 0, data[1], data[2], 1, 0, data[16]};
+                                        uint8_t send[9] = {255, 5, 0, 0, data[1], data[2], 1, 0, data[16]};
                                         BMDControl->custom(send, 9);
                                         break;
                                     }
@@ -148,7 +148,7 @@ class CameraHandler {
                                         uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff)) / 2;
                                         uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff)) / 2;
                                         uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff)) / 2;
-                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
                                         break;
                                     }
@@ -158,7 +158,7 @@ class CameraHandler {
                                         uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff)) / 4;
                                         uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff)) / 4;
                                         uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff)) / 4;
-                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
                                         break;
                                     }
@@ -169,7 +169,7 @@ class CameraHandler {
                                         uint16_t g = (int16_t)((data[18] << 8) | (data[19] & 0xff));
                                         uint16_t b = (int16_t)((data[20] << 8) | (data[21] & 0xff));
                                         uint16_t y = (int16_t)((data[22] << 8) | (data[23] & 0xff));
-                                        uint8_t send[16] = {data[0], 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
+                                        uint8_t send[16] = {255, 12, 0, 0, data[1], data[2], 128, 0, (r & 0xff), (r >> 8), (g & 0xff), (g >> 8), (b & 0xff), (b >> 8), (y & 0xff), (y >> 8)};
                                         BMDControl->custom(send, 16);
                                         break;
                                     }
@@ -177,14 +177,14 @@ class CameraHandler {
                                         //Contrast
                                         uint16_t pivot = (uint16_t)((data[16] << 8) | (data[17] & 0xff));
                                         uint16_t adjust = (uint16_t)((data[18] << 8) | (data[19] & 0xff));
-                                        uint8_t send[12] = {data[0], 8, 0, 0, data[1], data[2], 128, 0, (pivot & 0xff), (pivot >> 8), (adjust & 0xff), (adjust >> 8)};
+                                        uint8_t send[12] = {255, 8, 0, 0, data[1], data[2], 128, 0, (pivot & 0xff), (pivot >> 8), (adjust & 0xff), (adjust >> 8)};
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
                                     case 5: {
                                         //Lum mix
                                         uint16_t value = (uint16_t)((data[16] << 8) | (data[17] & 0xff));
-                                        uint8_t send[10] = {data[0], 6, 0, 0, data[1], data[2], 128, 0, (value & 0xff), (value >> 8)};
+                                        uint8_t send[10] = {255, 6, 0, 0, data[1], data[2], 128, 0, (value & 0xff), (value >> 8)};
                                         BMDControl->custom(send, 10);
                                         break;
                                     }
@@ -192,7 +192,7 @@ class CameraHandler {
                                         //Color adjust
                                         int16_t hue = (int16_t)((data[16] << 8) | (data[17] & 0xff));
                                         uint16_t saturation = (int16_t)((data[18] << 8) | (data[19] & 0xff));
-                                        uint8_t send[12] = {data[0], 8, 0, 0, data[1], data[2], 128, 0, (hue & 0xff), (hue >> 8), (saturation & 0xff), (saturation >> 8)};
+                                        uint8_t send[12] = {255, 8, 0, 0, data[1], data[2], 128, 0, (hue & 0xff), (hue >> 8), (saturation & 0xff), (saturation >> 8)};
                                         BMDControl->custom(send, 12);
                                         break;
                                     }
