@@ -53,6 +53,20 @@ The device once configured should connect and act as expected. If not the device
 - ```Web Configuration``` Press the restart button 3 times to open a AP which when connected to can be used to configure the device. If not taken to the page navigate to ```192.168.1.1``` CURRENTLY NOT SUPPORTED!
 - ```Serial Configuraion``` Connect to the device via USB and open a serial terminal at ```115200```. Once connected sending anything will open the configuration menu.
 
+# Troubleshooting
+## Tally operation codes
+If the tally feature is enabled the following (if default settings are used) will occur:
+- ```First color on power up``` is the version
+- ```Orange at power up``` the device is connecting to required devices
+- ```Turquoise color``` the device is in AP mode
+
+## Tally Error Codes
+If the tally feature is enabled the following (if default settings are used) will occur:
+- ```Fast flashing blue 20 times before reboot``` Wifi failed to connect or was lost
+- ```Fast flashing blue 20 times on startup``` Bluetooth failed to connect
+- ```Fast flashing red 20 times on startup``` Tally feature failed to connect
+- ```Fast flashing yellow 20 times on startup``` A camera ID was not set
+
 # Special Thanks
 This project is made possible by the following
 - [SchoolPost](https://github.com/schoolpost/) for [BlueMagic32](https://github.com/schoolpost/BlueMagic32) which provides the bluetooth functionality of this project

@@ -1,22 +1,30 @@
+#include <WiFi.h>
+#include <WifiUdp.h>
 #include "utility.h"
 #include "settings.h"
 #include "prefHandler.h"
 #include "WiFi.h"
-#include "cameraHandler.h"
-#include "statusIndicator.h"
 #include <DNSServer.h>
 #include "webServer.h"
 
-CameraHandler cameraHandler;
 PreferencesHandler prefHandler;
-StatusIndicator statusIndicator(DEBUG_LED);
 DNSServer dnsServer;
 WebServer webServer;
+WiFiUDP udp;
 bool APOpen = false;
+int packetSize = 0;
+byte packetBuffer[100];
+
+#include "cameraHandler.h"
+#include "tallyHandler.h"
+CameraHandler cameraHandler;
+
+#ifdef TALLY_FEATURE
+TallyHandler tallyHandler;
+#endif
 
 //Open an AP to allow for configuration using the web ui
 void openAP() {
-  statusIndicator.updateStatus(StatusIndicator::Status::APOpen);
   Serial.print("Opening AP on SSID: " + String(CONFIG_SSID) + "... ");
   WiFi.disconnect();
   WiFi.mode(WIFI_OFF);
@@ -28,6 +36,8 @@ void openAP() {
   Serial.println(" Ready");
   prefHandler.setRebootFlag(0);
   APOpen = true;
+  tallyHandler.setUserLED(TALLY_COLOR_AP_MODE, false);
+  tallyHandler.setStageLED(TALLY_COLOR_AP_MODE);
 }
 
 //Listen and handle serial events
@@ -46,13 +56,15 @@ void serialLoop(String input = "") {
         Serial.println("\n------- Menu -------");
         Serial.println("1 - Change the WIFI settings");
         Serial.println("2 - Change the ATEM Connection Preference");
-        #ifdef DEBUG
-          Serial.println("3 - Open AP to configuration tool");
+        Serial.println("3 - Change camera id");
+        #ifdef TALLY_FEATURE
+        Serial.println("4 - Set the tally server IP");
         #endif
-        Serial.println("4 - Reset bluetooth pairing");
-        Serial.println("5 - Reset EEPROM");
-        Serial.println("6 - Reboot device");
-        Serial.println("7 - Exit");
+        Serial.println("5 - Open AP to configuration tool");
+        Serial.println("6 - Reset bluetooth pairing");
+        Serial.println("7 - Reset EEPROM");
+        Serial.println("8 - Reboot device");
+        Serial.println("9 - Exit");
       }
       else {
         if(inMenu == 0) {
@@ -85,9 +97,6 @@ void serialLoop(String input = "") {
             String ip = "";
             Serial.println("Change ATEM Connection");
             Serial.println("Connection mode (0=Direct ATEM Connection, 1=Slave connection, 2=Node red connection): ");
-            #ifndef DEBUG
-              Serial.println("Currently 2 (Node red connection) is only supported, sorry");
-            #endif
             while(!Serial.available()) {}
             while(Serial.available()) {connectionMode += (char)Serial.read();}
             Serial.print(removeNewLine(connectionMode));
@@ -103,14 +112,43 @@ void serialLoop(String input = "") {
             ESP.restart();
             break;
           }
-          //Open AP to config tool
           case 3: {
+            String id = "";
+            Serial.println("Change Camera ID");
+            Serial.println("Please enter the ID you would like to use for the camera: ");
+            while(!Serial.available()) {}
+            while(Serial.available()) {id += (char)Serial.read();}
+            Serial.print(removeNewLine(id));
+            Serial.println(" OK");
+            prefHandler.writeCameraId(removeNewLine(id).toInt());
+            inMenu = -1;
+            ESP.restart();
+            break;
+          }
+          #ifdef TALLY_FEATURE
+          //Set the tally server ip
+          case 4: {
+            String ip = "";
+            Serial.println("Change Tally Server IP Address");
+            Serial.println("Please enter the IP address to the NodeRed server containing the tally handler: ");
+            while(!Serial.available()) {}
+            while(Serial.available()) {ip += (char)Serial.read();}
+            Serial.print(removeNewLine(ip));
+            Serial.println(" OK");
+            prefHandler.writeTallyIP(removeNewLine(ip));
+            inMenu = -1;
+            ESP.restart();            
+            break;
+          }
+          #endif
+          //Open AP to config tool
+          case 5: {
             openAP();
             inMenu = -1;
             break;
           }
           //Reset bluetooth pairing
-          case 4: {
+          case 6: {
             Serial.println("Resetting the pairing will disconnect from the camera and forget it. Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -131,7 +169,7 @@ void serialLoop(String input = "") {
             break;
           }
           //Reset EEPROM
-          case 5: {
+          case 7: {
             Serial.println("Resetting the EEPROM will erase ALL stored information including ALL settings! Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -150,12 +188,12 @@ void serialLoop(String input = "") {
             break;
           }
           //Reset
-          case 6: {
+          case 8: {
             ESP.restart();
             break;
           }
           //Exit menu
-          case 7: {
+          case 9: {
             Serial.println("");
             inMenu = -1;
             break;
@@ -180,14 +218,14 @@ void setup() {
   Serial.println("Build Date: " + String(__DATE__));
   Serial.println("");
   Serial.print("Send anything over serial to open configuration menu.");
-  prefHandler.initalize();
+  prefHandler.initalize(); 
+  #ifdef TALLY_FEATURE
+  tallyHandler.begin(&prefHandler);
+  #endif
 
   //Check if the device was rebooted twice. If so open the configuration tool
   if(prefHandler.getRebootFlag() >= 2) {
     Serial.println("Configuration tool requested. Opening AP.");
-    #ifndef DEBUG
-      Serial.println("However this is not supported yet"); ESP.restart();
-    #endif
     openAP();
     return;
   }
@@ -201,7 +239,6 @@ void setup() {
       Serial.print(".");
       if(i>10){break;}
       delay(500);
-      statusIndicator.updateStatus(StatusIndicator::Status::Waiting);
     }
     Serial.println("");
   }
@@ -215,6 +252,10 @@ void setup() {
   prefHandler.readWifiSSID().toCharArray(ssid, 32);
   prefHandler.readWifiPassword().toCharArray(pass, 32);
 
+  #ifdef TALLY_FEATURE
+  tallyHandler.setUserLED(TALLY_COLOR_CONNECT);
+  #endif
+
   //If the settings were not configured open the AP
   if(String(ssid) == "ssid" || String(pass) == "pass" || prefHandler.readATEMIP() == "0.0.0.0") {
     Serial.println("Memory was reset please set device settings");
@@ -227,13 +268,15 @@ void setup() {
     //Wait till wifi is connected
     int i = 0;
     while (!WiFi.isConnected()) {
-      statusIndicator.updateStatus(StatusIndicator::Status::Connecting);
       Serial.print(".");
       serialLoop();
       i++;
       if(i > 50) {
         //Failed to connect
         Serial.println(" Failed");
+        #ifdef TALLY_FEATURE
+        tallyHandler.flashLEDBlocking(0, 0, 255, 200, 20);
+        #endif
         ESP.restart();
         break;
       }
@@ -250,17 +293,59 @@ void setup() {
     }
     else {
       Serial.println(" Failed");
+       #ifdef TALLY_FEATURE
+       tallyHandler.flashLEDBlocking(0, 255, 0, 200, 20);
+       #endif
       openAP();
+      return;
     }
-  }
 
-  if(!APOpen){statusIndicator.updateStatus(StatusIndicator::Status::NormalOperation);}
+    #ifdef TALLY_FEATURE
+    Serial.print("Attempting to setup tally feature... ");
+    if(tallyHandler.connect()) {
+      Serial.println("Success!");
+
+      //Blink the led to show the camera ID
+      if(prefHandler.getCameraId() != -1) {
+        tallyHandler.setStageLED(0, 0, 0);
+        delay(1000);
+        tallyHandler.flashLEDBlocking(TALLY_COLOR_LIVE, 300, prefHandler.getCameraId());
+        tallyHandler.flashLEDBlocking(TALLY_COLOR_STANDBY, 1000, 1);
+      }
+    }
+    else {
+      Serial.println(" Failed");
+      #ifdef TALLY_FEATURE
+      tallyHandler.flashLEDBlocking(255, 0, 0, 200, 20);
+      #endif
+      openAP();
+      return;
+    }
+    #endif
+
+    //Camera id
+    if(prefHandler.getCameraId() == -1) {
+      Serial.println("A camera ID was not set. Please set one!");
+      #ifdef TALLY_FEATURE
+      tallyHandler.flashLEDBlocking(255, 255, 0, 200, 20);
+      #endif
+      openAP();
+      return;
+    }
+    else {
+      Serial.println("Camera ID set to " + String(prefHandler.getCameraId()));
+    }
+
+    #ifdef TALLY_FEATURE
+    tallyHandler.setStageLED(TALLY_COLOR_INDICATE);
+    tallyHandler.setUserLED(TALLY_COLOR_BLACK);
+    #endif
+  }
 }
 
 //Main loop
 void loop() {
   serialLoop();
-  statusIndicator.updateStatus();
 
   if(APOpen) {
     //Configuration AP is open handle connections
@@ -268,11 +353,24 @@ void loop() {
     webServer.loop();
   }
   else {
-    //Do normal functions
+    //Read the data from UDP if required and store it
+    packetSize = udp.parsePacket();
+    if(packetSize > 0) {
+      memset(packetBuffer, 0, sizeof(packetBuffer));
+      udp.read(packetBuffer, packetSize);
+    }
+
     cameraHandler.loop();
+
+    #ifdef TALLY_FEATURE
+    tallyHandler.loop();
+    #endif
 
     //If we lost connection to the wifi reboot
     if(WiFi.status() != WL_CONNECTED) {
+      #ifdef TALLY_FEATURE
+      tallyHandler.flashLEDBlocking(0, 0, 255, 200, 20);
+      #endif
       ESP.restart();
     }
   }

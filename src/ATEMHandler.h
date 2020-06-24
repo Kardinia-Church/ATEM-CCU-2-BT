@@ -64,7 +64,8 @@ class ATEMHandler: public ATEMConnection {
         }
 
         //Begin
-        bool begin(String ipAddress) {
+        bool begin(String ipAddress, PreferencesHandler *preferencesHandler) {
+            prefHandler = preferencesHandler;
             atemIp = ipAddress;
             atemConnectionState = AtemConnectionState::Disconnected;
             atemLocalPacketId = 0;
@@ -158,13 +159,14 @@ class ATEMHandler: public ATEMConnection {
 
                 //Wait for a bit then attempt a reconnection
                 if(lastATEMResponse + 10000 < millis()) {
-                    begin(atemIp);
+                    begin(atemIp, prefHandler);
                 }
             }
         }
 
     private:
         String atemIp = "0.0.0.0";
+        PreferencesHandler *prefHandler;
         
         //Process the incoming ATEM packets looking for camera pamameters
         void processATEMIncoming() {

@@ -149,8 +149,6 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 
   void onResult(BLEAdvertisedDevice advertisedDevice)
   {
-    Serial.println("BLE Advertised Device found: ");
-
     if (advertisedDevice.haveServiceUUID() && advertisedDevice.getServiceUUID().equals(ServiceId))
     {
       advertisedDevice.getScan()->stop();

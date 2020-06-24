@@ -68,9 +68,11 @@ class PreferencesHandler {
             writeString("wifiPassword", DEFAULT_WIFI_PASS);
             writeString("webUIPassword", DEFAULT_WEBUI_PASS);
             writeString("atemIPAddr", "0.0.0.0");
+            writeString("tallyIPAddr", "0.0.0.0");
             writeInt("BMDMEMORYSET", 1);
             writeInt("rebootFlag", 0);
             writeInt("atemMode", -1);
+            writeInt("cameraId", -1);
         }
 
         void setATEMConnectionMode(int mode) {
@@ -123,6 +125,22 @@ class PreferencesHandler {
         //Read the ATEM ip
         String readATEMIP() {
             return getString("atemIPAddr");
+        }
+
+        String readTallyIP() {
+            return getString("tallyIPAddr");
+        }
+
+        void writeTallyIP(String ip) {
+            writeString("tallyIPAddr", ip);
+        }
+
+        void writeCameraId(int id) {
+            writeInt("cameraId", id);
+        }
+
+        int getCameraId() {
+            return getInt("cameraId");
         }
 };
 

@@ -17,8 +17,6 @@ class CameraHandler {
             prefHandler = preferencesHandler;
             connectionMode = prefHandler->getATEMConnectionMode();
 
-            Serial.println(connectionMode);
-
             switch(connectionMode) {
                 case 0: {
                     //Direct ATEM connectiona
@@ -52,7 +50,7 @@ class CameraHandler {
                 return false;
             }
 
-            if(!atemHandler->begin(prefHandler->readATEMIP())) {return false;}
+            if(!atemHandler->begin(prefHandler->readATEMIP(), prefHandler)) {return false;}
 
             BMDControl = BMDConnection.connect();   
             lastUpdate = millis();
