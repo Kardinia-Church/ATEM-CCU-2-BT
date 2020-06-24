@@ -194,6 +194,7 @@ class CameraHandler {
                                         uint16_t saturation = (int16_t)((data[18] << 8) | (data[19] & 0xff));
                                         uint8_t send[12] = {255, 8, 0, 0, data[1], data[2], 128, 0, (hue & 0xff), (hue >> 8), (saturation & 0xff), (saturation >> 8)};
                                         BMDControl->custom(send, 12);
+                                        
                                         break;
                                     }
                                     break;
