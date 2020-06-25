@@ -10,6 +10,8 @@ So far this project supports:
 - Serial configuration
 - Tallying
 
+This is now running on our wireless camera rig with great success!
+
 ## What's not working?
 At the moment the following is not working or not finished:
 - A direct ATEM connection
@@ -41,6 +43,9 @@ In order to use the project a ESP32 is required, this project was built on a ESP
 ## Hardware
 ### Tally feature
 If desired one can connect a string of NeoPixels (we use 2 PL9823's) with a stage led and user led to show the tally connected to pin ```G26```
+
+### 3D Files
+Included are 3D printable files for both the tally lights and controller. The tally light file can be printed for two PL9823s to be used as a user led and stage led. The controller file can be used just to enclose your ESP32 with mounting points or to be used for the tally system.
 
 ## Node Red
 If using the node red mode add the following to your flow to process the commands using the [blackmagic-atem-nodered](https://github.com/haydendonald/blackmagic-atem-nodered) module
