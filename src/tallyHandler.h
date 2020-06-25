@@ -44,25 +44,57 @@
                 lastMessage = millis();
             }
         public:
+            //Perform a test
+            void test() {
+                while(true) {
+                    setUserLED(0, 0, 0);
+                    setStageLED(0, 0, 0);
+                    delay(500);
+                    setUserLED(255, 0, 0);
+                    setStageLED(0, 0, 0);
+                    delay(500);
+                    setUserLED(0, 255, 0);
+                    setStageLED(0, 0, 0);
+                    delay(500);
+                    setUserLED(0, 0, 255);
+                    setStageLED(0, 0, 0);
+                    delay(500);
+                    setUserLED(0, 0, 0);
+                    setStageLED(255, 0, 0);
+                    delay(500);
+                    setUserLED(0, 0, 0);
+                    setStageLED(0, 255, 0);
+                    delay(500);
+                    setUserLED(0, 0, 0);
+                    setStageLED(0, 0, 255);
+                    delay(500);
+                }
+            }
+
             //Set the user leds to a color
-            void setUserLED(int r, int g, int b, bool show = true) {
+            void setUserLED(int r, int g, int b, bool show = true, int brightness = -1) {
+                //If brightnes is set to -1 get it from memory
+                if(brightness == -1) {brightness = prefHandler->getUserBrightness();}
+
                 for(int i = 0; i < sizeof(TALLY_LED_USER)/sizeof(TALLY_LED_USER[0]); i++) {
-                    strip->setPixelColor(TALLY_LED_USER[i], strip->Color(r, g, b));
+                    strip->setPixelColor(TALLY_LED_USER[i], strip->Color((float)r * ((float)brightness/100), (float)g * ((float)brightness/100), (float)b * ((float)brightness/100)));
                 }
                 if(show){strip->show();}
             }
 
             //Set the stage leds to a color
-            void setStageLED(int r, int g, int b, bool show = true) {
+            void setStageLED(int r, int g, int b, bool show = true, int brightness = 100) {
+                if(brightness == -1) {brightness = prefHandler->getStageBrightness();}
+                
                 for(int i = 0; i < sizeof(TALLY_LED_STAGE)/sizeof(TALLY_LED_STAGE[0]); i++) {
-                    strip->setPixelColor(TALLY_LED_STAGE[i], strip->Color(r, g, b));
+                    strip->setPixelColor(TALLY_LED_STAGE[i], strip->Color((float)r * ((float)brightness/100), (float)g * ((float)brightness/100), (float)b * ((float)brightness/100)));
                 }
                 if(show){strip->show();}
             }
 
             //Set the stage leds to a color
-            void setLED(int index, int r, int b, int g, bool show = true) {
-                strip->setPixelColor(index, strip->Color(r, g, b));
+            void setLED(int index, int r, int b, int g, bool show = true, int brightness = -1) {
+                strip->setPixelColor(index, strip->Color((float)r * ((float)brightness/100), (float)g * ((float)brightness/100), (float)b * ((float)brightness/100)));
                 if(show){strip->show();}
             }
 

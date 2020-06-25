@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define VERSION 0.2
+#define VERSION 0.5
 
 //General settings
 #define SERIAL_BAUD 115200
@@ -30,7 +30,7 @@
     #define TALLY_TYPE  NEO_RGB + NEO_KHZ800
 
     #define TALLY_COLOR_BLACK 0, 0, 0
-    #define TALLY_COLOR_INDICATE 0, 0, 255
+    #define TALLY_COLOR_INDICATE 0, 0, 0
     #define TALLY_COLOR_STANDBY 0, 255, 0
     #define TALLY_COLOR_LIVE 255, 0, 0
     #define TALLY_COLOR_VERSION 255, VERSION * 255, VERSION * 125

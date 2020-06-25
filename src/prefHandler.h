@@ -73,6 +73,8 @@ class PreferencesHandler {
             writeInt("rebootFlag", 0);
             writeInt("atemMode", -1);
             writeInt("cameraId", -1);
+            writeInt("stageBrightness", 100);
+            writeInt("userBrightness", 100);
         }
 
         void setATEMConnectionMode(int mode) {
@@ -141,6 +143,22 @@ class PreferencesHandler {
 
         int getCameraId() {
             return getInt("cameraId");
+        }
+
+        void writeUserBrightness(int percent) {
+            writeInt("userBrightness", percent);
+        }
+
+        int getUserBrightness() {
+            return getInt("userBrightness");
+        }
+
+        void writeStageBrightness(int percent) {
+            writeInt("stageBrightness", percent);
+        }
+
+        int getStageBrightness() {
+            return getInt("stageBrightness");
         }
 };
 

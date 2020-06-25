@@ -59,12 +59,15 @@ void serialLoop(String input = "") {
         Serial.println("3 - Change camera id");
         #ifdef TALLY_FEATURE
         Serial.println("4 - Set the tally server IP");
+        Serial.println("5 - Perform test on the tally");
+        Serial.println("6 - Set user led brightness");
+        Serial.println("7 - Set stage led brightness");
         #endif
-        Serial.println("5 - Open AP to configuration tool");
-        Serial.println("6 - Reset bluetooth pairing");
-        Serial.println("7 - Reset EEPROM");
-        Serial.println("8 - Reboot device");
-        Serial.println("9 - Exit");
+        Serial.println("8 - Open AP to configuration tool");
+        Serial.println("9 - Reset bluetooth pairing");
+        Serial.println("10 - Reset EEPROM");
+        Serial.println("11 - Reboot device");
+        Serial.println("12 - Exit");
       }
       else {
         if(inMenu == 0) {
@@ -141,14 +144,50 @@ void serialLoop(String input = "") {
             break;
           }
           #endif
-          //Open AP to config tool
+          #ifdef TALLY_FEATURE
+          //Set the tally server ip
           case 5: {
+            String ip = "";
+            Serial.println("Test the tally lights");
+            Serial.println("Testing.. Please reboot to stop");
+            tallyHandler.test();         
+            break;
+          }
+          #endif
+          case 6: {
+            String val = "";
+            Serial.println("Set the user LED brightness");
+            Serial.println("Please enter a value between 0 - 100%");
+            while(!Serial.available()) {}
+            while(Serial.available()) {val += (char)Serial.read();}
+            Serial.print(removeNewLine(val));
+            Serial.println(" OK");
+            prefHandler.writeUserBrightness(removeNewLine(val).toInt());
+            inMenu = -1;
+            ESP.restart();
+            break;
+          }
+          case 7: {
+            String val = "";
+            Serial.println("Set the stage LED brightness");
+            Serial.println("Please enter a value between 0 - 100%");
+            while(!Serial.available()) {}
+            while(Serial.available()) {val += (char)Serial.read();}
+            Serial.print(removeNewLine(val));
+            Serial.println(" OK");
+            prefHandler.writeStageBrightness(removeNewLine(val).toInt());
+            inMenu = -1;
+            ESP.restart();
+            break;
+          }
+          //Open AP to config tool
+          case 8: {
             openAP();
             inMenu = -1;
             break;
           }
           //Reset bluetooth pairing
-          case 6: {
+          case 9: {
             Serial.println("Resetting the pairing will disconnect from the camera and forget it. Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -169,7 +208,7 @@ void serialLoop(String input = "") {
             break;
           }
           //Reset EEPROM
-          case 7: {
+          case 10: {
             Serial.println("Resetting the EEPROM will erase ALL stored information including ALL settings! Are you sure?\nType Y to erase or N to exit");
             while(!Serial.available()) {}
             String answer = "";
@@ -188,12 +227,12 @@ void serialLoop(String input = "") {
             break;
           }
           //Reset
-          case 8: {
+          case 11: {
             ESP.restart();
             break;
           }
           //Exit menu
-          case 9: {
+          case 12: {
             Serial.println("");
             inMenu = -1;
             break;
