@@ -1,7 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define VERSION 0.5
+#define VERSION 0.6
 
 //General settings
 #define SERIAL_BAUD 115200
@@ -16,6 +16,8 @@
 #define CMD_SUBSCRIBE_CCU 0xAD
 #define CMD_SUBSCRIBE_TALLY 0xAF
 #define CMD_PING 0xFA
+#define CMD_PROGRAM 0x01
+#define CMD_PREVIEW 0x02
 
 //Bluetooth settings
 #define BLUETOOTH_DEVICE_NAME "CCU2BT"
@@ -33,7 +35,7 @@
     #define TALLY_COLOR_INDICATE 0, 0, 0
     #define TALLY_COLOR_STANDBY 0, 255, 0
     #define TALLY_COLOR_LIVE 255, 0, 0
-    #define TALLY_COLOR_VERSION 255, VERSION * 255, VERSION * 125
+    #define TALLY_COLOR_VERSION 255, 255, 0
     #define TALLY_COLOR_AP_MODE 0, 255, 100
     #define TALLY_COLOR_CONNECT 255, 100, 0
 

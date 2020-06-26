@@ -37,7 +37,17 @@ class NRHandler: public ATEMConnection {
             return true;
         }
 
+        bool connected() {
+            return (lastMessage + 1000 < millis()) && pingSent;
+        }
+
         byte *loop(){
+            packetSize = udp.parsePacket();
+            if(packetSize > 0) {
+                memset(packetBuffer, 0, sizeof(packetBuffer));
+                udp.read(packetBuffer, packetSize);
+            }
+
             //Check if there is a incoming packet to handle
             if (packetSize == 24) {
                 pingSent = false;

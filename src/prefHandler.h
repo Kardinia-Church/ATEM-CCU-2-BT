@@ -75,6 +75,7 @@ class PreferencesHandler {
             writeInt("cameraId", -1);
             writeInt("stageBrightness", 100);
             writeInt("userBrightness", 100);
+            writeString("ignoedMEs", "");
         }
 
         void setATEMConnectionMode(int mode) {
@@ -159,6 +160,14 @@ class PreferencesHandler {
 
         int getStageBrightness() {
             return getInt("stageBrightness");
+        }
+
+        void writeIgnoredMEs(String ignoredMEs) {
+            writeString("ignoredMEs", ignoredMEs);
+        }
+
+        String getIgnoredMEs() {
+            return getString("ignoredMEs");
         }
 };
 

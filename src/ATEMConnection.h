@@ -6,5 +6,6 @@ class ATEMConnection {
  public:
      virtual bool begin(String ipAddress, PreferencesHandler *preferencesHandler);
      virtual byte *loop();
+     virtual bool connected();
  };
  #endif

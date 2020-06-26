@@ -12,6 +12,7 @@ class CameraHandler {
         ATEMConnection *atemHandler;
         unsigned long lastUpdate;
         int connectionMode = 0;
+        int cameraId = -1;
     public:
         bool connect(PreferencesHandler *preferencesHandler) {
             prefHandler = preferencesHandler;
@@ -20,9 +21,7 @@ class CameraHandler {
             switch(connectionMode) {
                 case 0: {
                     //Direct ATEM connectiona
-                    //atemHandler = new ATEMHandler;
-                    Serial.println("Slave connection not supported yet, sorry. Setting mode to node red mode");
-                    prefHandler->setATEMConnectionMode(2);
+                    atemHandler = new ATEMHandler;
                     break;
                 }
                 case 1: {
@@ -50,10 +49,14 @@ class CameraHandler {
                 return false;
             }
 
-            if(!atemHandler->begin(prefHandler->readATEMIP(), prefHandler)) {return false;}
+            if(prefHandler->getCameraId() == -1) {
+                Serial.print(" Camera ID is not set ");
+                return false;
+            }
+            cameraId = prefHandler->getCameraId();
 
+            if(!atemHandler->begin(prefHandler->readATEMIP(), prefHandler)) {return false;}
             BMDControl = BMDConnection.connect();   
-            lastUpdate = millis();
             return true;
         }
 
@@ -63,11 +66,17 @@ class CameraHandler {
             return true;
         };
 
+        bool connected() {
+            return atemHandler->connected() && BMDConnection.available();
+        };
+
         //Main loop
         void loop() {
             byte *data = atemHandler->loop();
             if(data != nullptr) {
                 if (BMDConnection.available()) {
+                        if(data[0] != cameraId){return;}
+
                         switch(data[1]) {      
                             case 0: {
                                 //Lens

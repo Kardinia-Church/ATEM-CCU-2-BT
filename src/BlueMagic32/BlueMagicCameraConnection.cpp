@@ -416,6 +416,7 @@ BlueMagicCameraController *BlueMagicCameraConnection::connect(uint8_t index)
     _pref->putBool("authenticated", getAuthentication());
     _pref->end();
     setCameraAddress(address);
+
     return _cameraControl;
   }
 

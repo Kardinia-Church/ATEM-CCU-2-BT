@@ -9,17 +9,16 @@ So far this project supports:
 - Controlling CCU parameters using a Node Red server as a middle man to transfer the packets
 - Serial configuration
 - Tallying
+- Direct ATEM connection for both CCU and tallying
 
 This is now running on our wireless camera rig with great success!
 
 ## What's not working?
 At the moment the following is not working or not finished:
-- A direct ATEM connection
-- A slave mode to connect to another device that is in direct connection mode acting as the master
 - Web configuration
 - Clearing a connected camera acts funky sometimes. If you have this issue try using the ESP32 tool to clear all memory
-- Changing paramaters on the camera will not update the ATEM. It's only ATEM->Camera at the moment
-- If bluetooth disconnects it may not reconnect
+- Changing parameters on the camera will not update the ATEM. It's only ATEM->Camera
+- If bluetooth disconnects it may not reconnect and a powercycle will be required
 
 # Installation 
 In order to use the project a ESP32 is required, this project was built on a ESP-WROOM-32 from Jaycar.
